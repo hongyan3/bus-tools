@@ -1,5 +1,7 @@
 import struct
 import time
+import re
+import os
 from doipclient import client
 from libs.doip.client import DoipConnect
 
@@ -27,6 +29,63 @@ NRC = {
     0x92:'voltageTooHigh/电压过高, 当前电压值超过了编程允许的最大门限值',
     0x93:'voltageTooLow/电压过低, 当前电压值低于了编程允许的最小门限值'
 }
+
+def console():
+    GREEN = "\033[32m"
+    RESET = "\033[0m"
+    RED = "\033[31m"
+
+    ecu_address = None
+    help_info = """
+Example:
+    console> set ecu=1201
+    1201> 22 F1 90
+    1201> 62 F1 FF FF FF
+Command:
+    set ecu=<ecu_address>   # Example: set ecu=1201
+    exit                    # Exit program
+    clear                   # Clear screen output
+    """
+    pattern = r'^(([0-9A-Fa-f]{2})\s)*([0-9A-Fa-f]{2})$'
+    try:
+        while True:
+            if ecu_address is None:
+                print(f'{GREEN}console{RESET}> ', end="")
+            else:
+                print(f'{GREEN}ECU_{ecu_address}{RESET}> ', end="")
+            command = input().strip()
+            if command == 'help':
+                print(help_info)
+            elif command == 'exit':
+                return
+            elif command == 'clear':
+                os.system('clear')
+            elif command.startswith('set ecu='):
+                ecu_address=command.split('=')[1]
+            elif re.match(pattern, command) is not None:
+                if ecu_address is None:
+                    print('Please set the ecu logical address. Example: set ecu=<ecu_address>')
+                    continue
+                try:
+                    addr = int(ecu_address, 16)
+                    with DoipConnect(addr) as client:
+                        hex_strings = command.split(' ')
+                        cmd = bytes.fromhex(''.join(hex_strings))
+                        client.send_diagnostic(cmd, timeout=5)
+                        raw = client.receive_diagnostic(timeout=5)
+                        res = raw.hex()
+                        formatted_string = ' '.join(res[i:i+2].upper() for i in range(0, len(res), 2))
+                        print(f'Raw: {formatted_string}')
+                        if raw[0] == 0x7F:
+                            print(f'Message: {NRC[raw[-1]]}')
+                except TimeoutError:
+                    print('Send or receive timeout')
+                except Exception as e:
+                    print(f'{RED}Error{RESET}: {e}')
+            else:
+                print('Invalid command, please enter "help"')
+    except KeyboardInterrupt:
+        print('\nexit')
 
 def extended_session_activate(client) -> bool:
     """
