@@ -1,5 +1,4 @@
 from libTSCANAPI import *
-
 from libs.can.can_interface import CanInterface
 
 PREFIX = '[TOSUN]'
@@ -80,7 +79,7 @@ class TosunDevice(CanInterface):
             print(f'Message send failed, msg: {msg.value.decode()}')
             return
 
-    def recv(self, timeout=None, channel=0):
+    def recv(self, timeout=None, channel=0) -> can.Message:
         start_time = time.time()
         while True:
             buffer = (TLIBCANFD * 1)()
