@@ -7,7 +7,7 @@ DIAG_LOGICAL_ADDRESS = 0x0E80
 
 def DoipConnect(ecu_logical_address: int) -> DoIPClient:
     try:
-        address, announcement = DoIPClient.await_vehicle_announcement(timeout=2)
+        address, announcement = DoIPClient.await_vehicle_announcement(timeout=5)
     except TimeoutError:
         print('[error] Connection timed out, please check your cable or network settings.')
         sys.exit(1)
