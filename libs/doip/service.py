@@ -48,7 +48,7 @@ Command:
     clear                   # Clear screen output
     """
     pattern = r'^(([0-9A-Fa-f]{2})\s)*([0-9A-Fa-f]{2})$'
-    client = DoipConnect(0x1001)
+    client = DoipConnect(0x1FFF)
     try:
         while True:
             if ecu_address is None:
