@@ -1,4 +1,4 @@
-from libs.doip import service
+from modules import uds_doip
 
 if __name__=='__main__':
-    service.console()
+    uds_doip.console()
