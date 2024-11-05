@@ -1,7 +1,17 @@
+import argparse
+import json
 import os
 import re
 from libs.doip import service
 from libs.doip.client import DoIPConnection
+
+PINCODE = {}
+
+ECU = {
+    "DHU": 0x1201,
+    "TCAM": 0x1011,
+    "RDHU": 0x1205
+}
 
 def vin_code() -> str:
     cdm_address = 0x1001
@@ -73,17 +83,85 @@ Command:
     finally:
         client.close()
     
-def open_debug():
-    client = DoIPConnection(0x1201)
+def open_debug(ecu_name: str, state=True):
+    """
+    ecu_name:
+    - DHU
+    - TCAM
+    state:
+    - True: OPEN
+    - FALSE CLOSE
+    """
+    vin = vin_code()
     try:
-        service.unlock_27service(client=client, pincode='FFFFFFFFFF')
-        res = client.send('2EC03E01')
-        if res[0] == 0x6E:
-            print('[info] Open debug mode successfully')
+        ecu_address = ECU[ecu_name]
+        pincode = PINCODE[vin][ecu_name]
+    except KeyError as e:
+        print('[error] Cannot found the pincode or ecu address')
+        return
+    client = DoIPConnection(ecu_address)
+    try:
+        if ecu_name == 'DHU' or ecu_name == 'RDHU':
+            service.unlock_27service(client=client, pincode=pincode)
+            res = None
+            if state:
+                res = client.send('2EC03E01')
+            else:
+                res = client.send('2EC03E00')
+            if res[0] == 0x6E:
+                print(f'[info] {'Open' if state else 'Close'} {ecu_name} debug mode successfully')
+            else:
+                print(f'[error] {'Open' if state else 'Close'} {ecu_name} debug mode failed')
+        elif ecu_name == 'TCAM':
+            open_cmd = ['31010232', '3101023000', '3101DC01']
+            close_cmd = ['31020232', '3102023200', '3102DC01']
+            service.unlock_27service(client=client, pincode=pincode)
+            res = None
+            flag = False
+            if state:
+                for cmd in open_cmd:
+                    res = client.send(cmd)
+                    if res[0] == 0x71:
+                        print(f'[info] {'Open' if state else 'Close'} {ecu_name} debug mode successfully')
+                        flag = True
+                        break
+                if not flag:
+                    print(f'[error] {'Open' if state else 'Close'} {ecu_name} debug mode failed')
+            else:
+                for cmd in close_cmd:
+                    res = client.send(cmd)
+                    if res[0] == 0x71:
+                        print(f'[info] {'Open' if state else 'Close'} {ecu_name} debug mode successfully')
+                        flag = True
+                        break
+                if not flag:
+                    print(f'[error] {'Open' if state else 'Close'} {ecu_name} debug mode failed')
         else:
-            print('[error] Open debug mode failed')
+            print(f'Unsupported the ecu: {ecu_name}')
+
     finally:
         client.close()
 
 if __name__=='__main__':
-    print(vin_code())
+    pincode_file = 'config/pincode.json'
+    with open(pincode_file, 'r') as file:
+        PINCODE = json.load(file)
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest='module')
+
+    # debug module
+    debug_parser = subparsers.add_parser('debug', help='Open or close the debug mode')
+    debug_parser.add_argument('--ecu', '-e', type=str, help='Input ecu name')
+    debug_parser.add_argument('state', choices=['open', 'close'])
+
+    # console module
+    info_parser = subparsers.add_parser('console', help='Enter terminal')
+    
+    args = parser.parse_args()
+
+    if args.module == 'debug':
+        ecu_name = args.ecu
+        state = True if args.state == 'open' else False
+        open_debug(ecu_name=ecu_name, state=state)
+    elif args.module == 'console':
+        console()
