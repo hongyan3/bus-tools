@@ -70,7 +70,7 @@ def apply_fuzzed_data(initial_data, fuzzed_data, bitmap):
             fuzz_index += 1
     return initial_data
 
-def replay_from_file(self, file_name, delay=0.01):
+def replay_from_file(bus: CanInterface, file_name, delay=0.01):
     """
     从日志文件中读取报文并重放
     :param file_name: 日志文件名
@@ -79,9 +79,9 @@ def replay_from_file(self, file_name, delay=0.01):
     """
     with open(file_name, "r") as f:
         for line in f:
-            line = line[:len(line) - 2]
+            line = line[:len(line) - 1]
             arb_id, data = parse_directive(line)
-            self.__can_bus.send(data=data, arb_id=arb_id)
+            bus.send(data=data, arb_id=arb_id)
             print('Message replayed: arb_id: {}, data: {}'.format(hex(arb_id), [hex(i) for i in data]))
             time.sleep(delay)
             
